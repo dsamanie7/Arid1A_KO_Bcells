@@ -1,0 +1,51 @@
+
+library(MEDIPS)
+library(BSgenome.Mmusculus.UCSC.mm10)
+extend = 0
+shift = 0
+BSgenome = "BSgenome.Mmusculus.UCSC.mm10"
+uniq = 1
+chr.select = c(paste("chr", seq(1,19), sep=""), "chrX", "chrY")
+paired = T
+roisfile <-  read.table("union_mergepeaks_controlKO.txt", sep="\t")
+
+
+roisfile <- data.frame(roisfile[,2:4], paste(roisfile[,2], roisfile[,3], roisfile[,4], sep="-"))
+
+write.table(roisfile[,1:3], "union_mergepeaks_controlKO.bed", quote=FALSE, sep="\t", col.names=FALSE, row.names=FALSE)
+
+
+openregionsfiles<- read.table("for_medips_atac_seq.txt",header=TRUE, stringsAsFactors=F)
+
+samples93 <- openregionsfiles
+
+DKO48IP <- samples93[(samples93[,1]=="KO" & samples93[,1]=="KO"),]
+WT48IP <- samples93[(samples93[,1]=="ctrl" & samples93[,1]=="ctrl" ),]
+
+
+bam.files.groupA <- DKO48IP
+bam.files.groupB <- WT48IP
+
+MSets_groupA = NULL
+for(i in 1:nrow(bam.files.groupA)){
+	MSets_groupA = c(MSets_groupA, MEDIPS.createROIset(file=bam.files.groupA[i,3], ROI=roisfile, extend=extend, BSgenome=BSgenome, uniq=uniq, chr.select=chr.select, paired=paired, sample_name=bam.files.groupA[i,1]))
+	gc()
+}
+
+
+MSets_groupB = NULL
+for(i in 1:nrow(bam.files.groupB)){
+	MSets_groupB = c(MSets_groupB, MEDIPS.createROIset(file=bam.files.groupB[i,3], ROI=roisfile, extend=extend,  BSgenome=BSgenome, uniq=uniq, chr.select=chr.select, paired=paired, sample_name=bam.files.groupB[i,1]))
+	gc()
+}
+
+
+MinRowSum_Cond1_Cond2 = (nrow(bam.files.groupA)  + nrow(bam.files.groupB) ) * 8
+MinRowSum_Cond1_Cond2
+
+res_1_T = MEDIPS.meth(MSet1 = MSets_groupA, MSet2 = MSets_groupB,chr = chr.select, p.adj = "BH", diff.method = "edgeR", CNV = FALSE, MeDIP = F, minRowSum = 0)
+
+write.table(res_1_T, "RPKMs_counts_new.csv", quote=FALSE, sep=",", col.names=TRUE, row.names=FALSE)
+
+gc()
+
